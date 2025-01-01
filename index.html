@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proyek AR - Beranda</title>
+    <style>
+        /* Gaya Global */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(to bottom, #0f2027, #203a43, #2c5364);
+            color: #fff;
+            overflow-x: hidden;
+        }
+
+        /* Navigasi */
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(20, 40, 60, 0.9);
+            padding: 1rem 2rem;
+            position: fixed;
+            width: 100%;
+            z-index: 1000;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        nav .logo {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #ffcc00;
+        }
+
+        nav ul {
+            display: flex;
+            list-style: none;
+        }
+
+        nav ul li {
+            margin-left: 20px;
+        }
+
+        nav ul li a {
+            text-decoration: none;
+            color: #fff;
+            font-size: 1rem;
+            transition: color 0.3s;
+        }
+
+        nav ul li a:hover {
+            color: #ffcc00;
+        }
+
+        /* Tombol Hamburger */
+        .menu-icon {
+            display: none;
+            font-size: 2rem;
+            cursor: pointer;
+        }
+
+        /* Bagian Header */
+        header {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 2rem;
+            background: url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1472&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D') no-repeat center center/cover;
+            color: #fff;
+            position: relative;
+        }
+
+        header::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 1;
+        }
+
+        header h1 {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+            z-index: 2;
+            position: relative;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        header p {
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+            max-width: 600px;
+            z-index: 2;
+            position: relative;
+            line-height: 1.8;
+        }
+
+        header a {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background: #ffcc00;
+            color: #0f2027;
+            text-decoration: none;
+            font-weight: bold;
+            border-radius: 50px;
+            transition: all 0.3s;
+            z-index: 2;
+            position: relative;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        header a:hover {
+            background: #ffd633;
+            transform: scale(1.05);
+        }
+
+        /* Bagian Fitur */
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 4rem auto;
+            padding: 0 2rem;
+            max-width: 1200px;
+        }
+
+        .feature {
+            background: #1e3a5f;
+            padding: 1.5rem;
+            border-radius: 15px;
+            text-align: center;
+            transition: transform 0.3s, box-shadow 0.3s;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .feature img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+        }
+
+        .feature h3 {
+            margin: 1rem 0;
+            font-size: 1.5rem;
+            color: #ffcc00;
+        }
+
+        .feature p {
+            font-size: 1rem;
+            color: #ccc;
+            line-height: 1.6;
+        }
+
+        .feature:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 2.5rem;
+            }
+
+            header p {
+                font-size: 1rem;
+            }
+        }
+
+        /* Responsif untuk perangkat mobile */
+        @media (max-width: 768px) {
+            nav ul {
+                display: none;
+                flex-direction: column;
+                background: rgba(20, 40, 60, 0.95);
+                position: absolute;
+                top: 100%;
+                right: 0;
+                width: 100%;
+                padding: 1rem 0;
+                text-align: center;
+            }
+
+            nav ul.show {
+                display: flex;
+            }
+
+            nav ul li {
+                margin: 10px 0;
+            }
+
+            .menu-icon {
+                display: block;
+                font-size: 2rem;
+                cursor: pointer;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigasi -->
+    <nav>
+        <div class="logo">Proyek AR</div>
+        <ul>
+            <li><a href="index.html">Beranda</a></li>
+            <li><a href="materi.html">Materi</a></li>
+            <li><a href="about.html">Tentang</a></li>
+        </ul>
+        <div class="menu-icon" id="menu-icon">
+            <span>&#9776;</span> <!-- Tiga garis (hamburger) -->
+        </div>
+    </nav>
+
+    <!-- Bagian Header -->
+    <header>
+        <h1>Selamat Datang di Proyek AR</h1>
+        <p>Jelajahi materi interaktif tentang Tata Surya, Globe, dan Struktur Bumi. Tingkatkan pengalaman belajar Anda dengan Augmented Reality!</p>
+        <a href="#">Mulai Sekarang</a>
+    </header>
+
+    <!-- Bagian Fitur -->
+    <section class="features">
+        <div class="feature">
+            <img src="https://plus.unsplash.com/premium_photo-1717774172650-f11186bb431c?q=80&w=1502&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" alt="Tata Surya">
+            <h3>Tata Surya</h3>
+            <p>Temukan planet, bintang, dan objek luar angkasa lainnya di Tata Surya kita.</p>
+        </div>
+        <div class="feature">
+            <img src="https://images.unsplash.com/photo-1589519160142-7d1a51b43eaf?q=80&w=1471&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" alt="Globe">
+            <h3>Globe Interaktif</h3>
+            <p>Jelajahi benua, negara, dan lautan dalam pengalaman globe 3D.</p>
+        </div>
+        <div class="feature">
+            <img src="https://img.freepik.com/premium-photo/structure-planet-earth-concept-3d-rendering_808337-4088.jpg?w=740" alt="Struktur Bumi">
+            <h3>Struktur Bumi</h3>
+            <p>Pelajari tentang kerak, mantel, dan inti bumi melalui model interaktif.</p>
+        </div>
+    </section>
+
+    <!-- JavaScript untuk Hamburger Menu -->
+    <script>
+        const menuIcon = document.getElementById('menu-icon');
+        const navMenu = document.querySelector('nav ul');
+
+        menuIcon.addEventListener('click', () => {
+            navMenu.classList.toggle('show');
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detail - Tata Surya</title>
+    <style>
+        /* Global Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(to bottom, #0f2027, #203a43, #2c5364);
+            color: #fff;
+            overflow-x: hidden;
+            padding: 1rem; /* Kurangi padding agar elemen lebih ke tepi */
+        }
+
+        .container {
+            max-width: 1000px; /* Lebar container diperbesar */
+            margin: 0 auto;
+        }
+
+        .image-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 2rem; /* Jarak antar elemen lebih lebar */
+            margin-bottom: 1.5rem;
+        }
+
+        .image-frame {
+            background: #1e3a5f;
+            padding: 1rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden; /* Agar gambar tidak keluar dari bingkai */
+        }
+
+        .image-frame.large {
+            flex: 3; /* Lebar relatif lebih besar */
+            height: 400px; /* Perbesar tinggi gambar utama */
+        }
+
+        .image-frame.small {
+            flex: 1.5; /* Lebar barcode diperkecil agar proporsi lebih baik */
+            height: 400px;
+        }
+
+        img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* Mengisi bingkai tanpa ruang kosong */
+            border-radius: 10px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            color: #ffcc00;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .btn-container {
+            text-align: center;
+            margin-top: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        button {
+            background-color: #ffcc00;
+            color: #0f2027;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            font-size: 1rem;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin: 0.5rem;
+        }
+
+        button:hover {
+            background-color: #e6b800;
+        }
+
+        .content {
+            text-align: justify; /* Justify untuk teks lebih rapi */
+            font-size: 1.1rem; /* Sedikit perbesar teks */
+            line-height: 2;
+            color: #ddd;
+        }
+
+        .content ul {
+            margin-top: 1rem;
+            padding-left: 1.5rem;
+        }
+
+        .content ul li {
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Tata Surya</h1>
+        <div class="image-wrapper">
+            <!-- Bingkai besar untuk foto tata surya -->
+            <div class="image-frame large">
+                <img src="https://plus.unsplash.com/premium_photo-1717774172650-f11186bb431c?q=80&w=1502&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D" alt="Gambar Tata Surya">
+            </div>
+            <!-- Bingkai kecil untuk barcode -->
+            <div class="image-frame small">
+                <img src="https://via.placeholder.com/200x200.png?text=Scan+AR+Code" alt="Barcode AR">
+            </div>
+        </div>
+        <div class="btn-container">
+            <button onclick="bukaKamera()">Buka Kamera</button>
+            <button onclick="kembaliKeMateri()">Kembali</button>
+        </div>
+        <div class="content">
+            <p>Tata surya terdiri dari Matahari sebagai pusatnya, serta delapan planet yang mengelilinginya. Berikut adalah nama-nama planet dalam tata surya:</p>
+            <ul>
+                <li>Merkurius</li>
+                <li>Venus</li>
+                <li>Bumi</li>
+                <li>Mars</li>
+                <li>Jupiter</li>
+                <li>Saturnus</li>
+                <li>Uranus</li>
+                <li>Neptunus</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        function bukaKamera() {
+            alert("Fitur kamera belum tersedia. Silakan ditambahkan sesuai kebutuhan proyek Anda.");
+        }
+
+        function kembaliKeMateri() {
+            window.location.href = "materi.html";
+        }
+    </script>
+</body>
+</html>

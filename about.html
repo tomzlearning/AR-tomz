@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tentang - Proyek AR</title>
+    <style>
+        /* Global Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(to bottom, #0f2027, #203a43, #2c5364);
+            color: #fff;
+            overflow-x: hidden;
+        }
+
+        /* Navigation Bar */
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(20, 40, 60, 0.9);
+            padding: 1rem 2rem;
+            position: fixed;
+            width: 100%;
+            z-index: 1000;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        nav .logo {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #ffcc00;
+        }
+
+        nav ul {
+            display: flex;
+            list-style: none;
+        }
+
+        nav ul li {
+            margin-left: 20px;
+        }
+
+        nav ul li a {
+            text-decoration: none;
+            color: #fff;
+            font-size: 1rem;
+            transition: color 0.3s;
+        }
+
+        nav ul li a:hover {
+            color: #ffcc00;
+        }
+
+        /* Hamburger Menu */
+        .hamburger {
+            display: none;
+            font-size: 2rem;
+            color: #fff;
+            cursor: pointer;
+        }
+
+        @media (max-width: 768px) {
+            nav ul {
+                display: none;
+                flex-direction: column;
+                background: rgba(20, 40, 60, 0.95);
+                position: absolute;
+                top: 100%;
+                right: 0;
+                width: 100%;
+                padding: 1rem 0;
+                text-align: center;
+            }
+
+            nav ul.show {
+                display: flex;
+            }
+
+            nav ul li {
+                margin: 10px 0;
+            }
+
+            .hamburger {
+                display: block;
+            }
+        }
+
+        /* About Section */
+        .about {
+            padding: 5rem 2rem;
+            text-align: center;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .about h1 {
+            font-size: 3.5rem;
+            color: #ffcc00;
+            margin-bottom: 1.5rem;
+        }
+
+        .about .photo {
+            width: 200px;
+            height: 200px;
+            margin: 0 auto;
+            border-radius: 50%;
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+            border: 5px solid #ffcc00;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .about .photo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .about p {
+            font-size: 1.2rem;
+            color: #ccc;
+            line-height: 1.8;
+            margin-bottom: 2rem;
+        }
+
+        .about .contact a {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background: #ffcc00;
+            color: #0f2027;
+            text-decoration: none;
+            font-weight: bold;
+            border-radius: 50px;
+            transition: all 0.3s;
+        }
+
+        .about .contact a:hover {
+            background: #ffd633;
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav>
+        <div class="logo">Proyek AR</div>
+        <div class="hamburger" id="hamburger-menu">☰</div>
+        <ul id="nav-menu">
+            <li><a href="index.html">Beranda</a></li>
+            <li><a href="materi.html">Materi</a></li>
+            <li><a href="about.html">Tentang</a></li>
+        </ul>
+    </nav>
+
+    <!-- About Section -->
+    <section class="about">
+        <h1>Tentang Saya</h1>
+        <div class="photo">
+            <img id="profile-img" src="https://i.imgur.com/klaWxPO.jpeg" alt="Foto Anda">
+        </div>
+        <p>Halo! Saya Wahyu Utomo Wibowo, seorang Mahasiswa Institut Widya Pratama Pekalongan yang antusias dalam mengerjakan proyek Augmented Reality. Saya suka menciptakan pengalaman interaktif dan edukatif bagi pengguna untuk menjelajahi dunia dengan cara yang baru. Tujuan saya adalah membuat pembelajaran lebih menarik dan mudah diakses melalui teknologi.</p>
+        <p>Jangan ragu untuk menghubungi saya untuk kolaborasi atau pertanyaan!</p>
+        <div class="contact">
+            <a href="https://wa.me/085747593971">Hubungi Saya</a>
+        </div>
+    </section>
+
+    <script>
+        // Toggle navbar menu
+        const hamburger = document.getElementById('hamburger-menu');
+        const navMenu = document.getElementById('nav-menu');
+
+        hamburger.addEventListener('click', () => {
+            navMenu.classList.toggle('show');
+        });
+    </script>
+</body>
+</html>
