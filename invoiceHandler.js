@@ -61,45 +61,35 @@ const checkShippingCost = async (province) => {
 // Fungsi untuk memproses input produk
 const parseProductsInput = async (input) => {
   const products = await getProducts();
-  const lines = input.split('\n'); // Pisahkan input menjadi beberapa baris
+  const lines = input.split('\n');
 
-  const itemsMap = new Map(); // Gunakan Map untuk menggabungkan produk dengan nama yang sama
+  const itemsMap = new Map();
 
   for (const line of lines) {
-    const trimmedLine = line.trim(); // Hilangkan spasi di awal dan akhir baris
-    if (!trimmedLine) continue; // Lewati baris kosong
+    const trimmedLine = line.trim();
+    if (!trimmedLine) continue;
 
-    // Pisahkan nama produk dan jumlah
-    const lastSpaceIndex = trimmedLine.lastIndexOf(' '); // Cari spasi terakhir
-    if (lastSpaceIndex === -1) {
-      throw new Error(`Format input produk tidak valid: "${trimmedLine}". Harus dalam format: [Nama Produk] [Jumlah]`);
-    }
+    const lastSpaceIndex = trimmedLine.lastIndexOf(' ');
+    const name = trimmedLine.substring(0, lastSpaceIndex).trim();
+    const qty = trimmedLine.substring(lastSpaceIndex + 1).trim();
 
-    const name = trimmedLine.substring(0, lastSpaceIndex).trim(); // Ambil nama produk
-    const qty = trimmedLine.substring(lastSpaceIndex + 1).trim(); // Ambil jumlah
-
-    // Validasi jumlah (harus angka)
-    if (isNaN(qty)) {
-      throw new Error(`Jumlah produk tidak valid: "${qty}". Harus berupa angka.`);
-    }
-
-    // Cari produk berdasarkan nama
+    // Cari produk berdasarkan nama (termasuk ID Produk)
     const product = products.find(p => 
-      p['Nama Produk'].toLowerCase() === name.toLowerCase()
+      p["Nama Produk"].toLowerCase() === name.toLowerCase()
     );
 
     if (!product) throw new Error(`Produk "${name}" tidak ditemukan`);
     if (product.Stok.toLowerCase() !== 'ready') throw new Error(`Stok "${name}" habis`);
 
-    // Jika produk sudah ada di Map, tambahkan jumlahnya
+    // Simpan ID Produk
     if (itemsMap.has(name)) {
       const existingItem = itemsMap.get(name);
       existingItem.qty += parseInt(qty);
       existingItem.subtotal = existingItem.price * existingItem.qty;
     } else {
-      // Jika produk belum ada di Map, tambahkan sebagai item baru
       itemsMap.set(name, {
-        name: product['Nama Produk'],
+        id: product["ID Produk"], // Ambil ID Produk dari DATA_PRODUK
+        name: product["Nama Produk"],
         price: product.Harga,
         qty: parseInt(qty),
         subtotal: product.Harga * parseInt(qty)
@@ -107,14 +97,10 @@ const parseProductsInput = async (input) => {
     }
   }
 
-  // Konversi Map ke array
   const items = Array.from(itemsMap.values());
-
-  // Hitung total harga
   const total = items.reduce((sum, item) => sum + item.subtotal, 0);
   return { items, total };
 };
-
 // Fungsi untuk menampilkan konfirmasi invoice
 const showInvoiceConfirmation = async (sock, sender, invoiceData) => {
   const { name, phone, address, products, shipping, total } = invoiceData;
@@ -157,13 +143,61 @@ Pilihan:
 // Fungsi untuk menyimpan invoice ke spreadsheet
 const saveInvoiceToSheet = async (invoiceData) => {
   try {
-    const response = await axios.post(process.env.APP_SCRIPT_URL, {
+    // 1️⃣ Simpan ke DATA_PEMESAN
+    await axios.post(process.env.APP_SCRIPT_URL, {
       action: 'save',
-      data: invoiceData
+      sheet: 'DATA_PEMESAN',
+      data: {
+        "Nomor WA": invoiceData.phone,
+        "Nama Pemesan": invoiceData.name,
+        "Alamat Lengkap": invoiceData.address,
+        "Tanggal Bergabung": new Date().toISOString().split('T')[0]
+      }
     });
-    return response.data;
+
+    // 2️⃣ Simpan ke DATA_PESANAN
+    const totalCost = invoiceData.products.total + 
+      (invoiceData.shipping.finalCost === '*GRATIS*' ? 0 : 
+        parseInt(invoiceData.shipping.finalCost.replace(/\D/g, '')));
+
+    const responsePesanan = await axios.post(process.env.APP_SCRIPT_URL, {
+      action: 'save',
+      sheet: 'DATA_PESANAN',
+      data: {
+        "Nomor WA": invoiceData.phone,
+        "Tanggal Pemesanan": new Date().toISOString().split('T')[0],
+        "Metode Pembayaran": "Belum diisi",
+        "Status Pembayaran": "DRAFT",
+        "Status Pengiriman": "Dalam Proses",
+        "No. Resi": "",
+        "Estimasi Pengiriman": invoiceData.shipping.estimate,
+        "Total Harga": totalCost,
+        "Alamat Pengiriman": invoiceData.address,
+        "Provinsi": invoiceData.shipping.province,
+        "Ongkir": invoiceData.shipping.finalCost
+      }
+    });
+
+    const idPesanan = responsePesanan.data.idPesanan; // Ambil ID Pesanan dari response
+
+    // 3️⃣ Simpan ke DETAIL_PRODUK_PESANAN
+    for (const item of invoiceData.products.items) {
+      await axios.post(process.env.APP_SCRIPT_URL, {
+        action: 'save',
+        sheet: 'DETAIL_PRODUK_PESANAN',
+        data: {
+          "ID Pesanan": idPesanan, // Pastikan ini sama dengan ID Pesanan di DATA_PESANAN
+          "ID Produk": item.id,
+          "Nama Produk": item.name,
+          "Jumlah": item.qty,
+          "Subtotal": item.subtotal
+        }
+      });
+    }
+
+    return { success: true, message: "Invoice berhasil disimpan.", idPesanan: idPesanan };
   } catch (error) {
-    throw new Error('Gagal menyimpan invoice ke spreadsheet: ' + error.message);
+    throw new Error('Gagal menyimpan invoice: ' + error.message);
   }
 };
 
