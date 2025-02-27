@@ -116,48 +116,45 @@ const handleInvoiceStep = async (sock, sender, messageText, session) => {
         console.log("[4] Bot mengirim pesan:", "📍 *MASUKKAN PROVINSI*");
         break;
 
-      case 'AWAITING_PROVINCE': {
-        try {
-          const province = messageText;
-          const shipping = await checkShippingCost(province);
+        case 'AWAITING_PROVINCE': {
+          try {
+            const province = messageText;
+            const shipping = await checkShippingCost(province);
         
-          nextSession.invoiceData.address = [
-            `Desa: ${nextSession.invoiceData.village}`,
-            `RT/RW: ${nextSession.invoiceData.rtRw}`,
-            `Kecamatan: ${nextSession.invoiceData.district}`,
-            `Kota: ${nextSession.invoiceData.city}`,
-            `Provinsi: ${province}`
-          ].join(', ');
+            nextSession.invoiceData.address = [
+              `Desa: ${nextSession.invoiceData.village}`,
+              `RT/RW: ${nextSession.invoiceData.rtRw}`,
+              `Kecamatan: ${nextSession.invoiceData.district}`,
+              `Kota: ${nextSession.invoiceData.city}`,
+              `Provinsi: ${province}`
+            ].join(', ');
         
-          nextSession.invoiceData.shipping = shipping;
-          nextSession.invoiceState = 'AWAITING_CONFIRMATION';
+            nextSession.invoiceData.shipping = shipping;
+            nextSession.invoiceState = 'AWAITING_CONFIRMATION';
         
-          // Pastikan products sudah diisi
-          if (!nextSession.invoiceData.products?.total) {
-            throw new Error("Produk belum dimasukkan.");
+            // Pastikan products sudah diisi
+            if (!nextSession.invoiceData.products?.total) {
+              throw new Error("Produk belum dimasukkan.");
+            }
+        
+            // Hitung totalCost
+            const totalCost = nextSession.invoiceData.products.total + 
+              (nextSession.invoiceData.shipping.finalCost === '*GRATIS*' ? 0 : 
+                parseInt(nextSession.invoiceData.shipping.finalCost.replace(/\D/g, '')));
+        
+            // Tampilkan konfirmasi invoice
+            await showInvoiceConfirmation(sock, sender, {
+              ...nextSession.invoiceData,
+              total: totalCost // <-- Pastikan ini dikirim
+            });
+          } catch (error) {
+            await sock.sendMessage(sender, {
+              text: `⚠️ ${error.message}\n📍 Silakan masukkan provinsi lagi:`
+            });
+            return;
           }
-        
-          const totalCost = nextSession.invoiceData.products.total +
-            (nextSession.invoiceData.shipping.finalCost === '*GRATIS*' ? 0 :
-              parseInt(nextSession.invoiceData.shipping.finalCost.replace(/\D/g, '')));
-        
-          // Tambahkan phone ke parameter showInvoiceConfirmation
-          await showInvoiceConfirmation(sock, sender, {
-            name: nextSession.invoiceData.name,
-            phone: nextSession.invoiceData.phone, // <-- INI DITAMBAHKAN
-            address: nextSession.invoiceData.address,
-            products: nextSession.invoiceData.products,
-            shipping: nextSession.invoiceData.shipping,
-            total: totalCost
-          });
-        } catch (error) {
-          await sock.sendMessage(sender, {
-            text: `⚠️ ${error.message}\n📍 Silakan masukkan provinsi lagi:`
-          });
-          return;
+          break;
         }
-        break;
-      }
 
       case 'AWAITING_CONFIRMATION':
         switch (messageText) {
@@ -172,11 +169,11 @@ const handleInvoiceStep = async (sock, sender, messageText, session) => {
             });
             break;
 
-          case '3': // Simpan
+            case '3': // Simpan
             try {
-              await saveInvoiceToSheet(nextSession.invoiceData);
+              const response = await saveInvoiceToSheet(nextSession.invoiceData);
               await sock.sendMessage(sender, { 
-                text: "✅ Invoice berhasil disimpan ke database.\n📁 ID Invoice: INV-" + new Date().getTime()
+                text: `✅ Invoice berhasil disimpan ke database.\n📁 ID Invoice: ${response.idPesanan}`
               });
             } catch (error) {
               await sock.sendMessage(sender, { 
@@ -184,7 +181,7 @@ const handleInvoiceStep = async (sock, sender, messageText, session) => {
               });
             }
             break;
-
+            
           case '4': // Batal
             await sock.sendMessage(sender, { text: "❌ Invoice dibatalkan" });
             userSessions.delete(sender);
