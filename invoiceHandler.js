@@ -137,7 +137,7 @@ Pilihan:
 1. Lanjut Pembayaran
 2. Ubah
 3. Simpan
-4. Batal`;
+4. Hapus`;
 
   await sock.sendMessage(sender, { text: summary });
 };
