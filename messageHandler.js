@@ -53,14 +53,15 @@ const handleInvoiceAction = async (sock, sender, messageText, session) => {
     case '1':
       await sock.sendMessage(sender, { text: "🔗 Mengarahkan ke menu pembayaran..." });
       userSessions.delete(sender); // Hapus sesi setelah memilih opsi
-      console.log(`Sesi dihapus untuk pengguna: ${sender}`); // Log untuk debugging
-      break;
+      return; // Hentikan fungsi setelah hapus sesi
+
     case '2':
       session.invoiceState = 'AWAITING_EDIT_CHOICE';
       await sock.sendMessage(sender, {
         text: "🛒 Ingin mengubah yang mana?\n1. Ubah Nama\n2. Ubah Nomor Telepon\n3. Ubah Produk\n4. Ubah Alamat\n5. Kembali"
       });
       break;
+
     case '3':
       try {
         const response = await saveInvoiceToSheet(session.previousInvoice);
@@ -68,11 +69,12 @@ const handleInvoiceAction = async (sock, sender, messageText, session) => {
           text: `✅ Invoice diperbarui. ID: ${response.idPesanan}` 
         });
         userSessions.delete(sender); // Hapus sesi setelah menyimpan invoice
-        console.log(`Sesi dihapus untuk pengguna: ${sender}`); // Log untuk debugging
+        return; // Hentikan fungsi setelah hapus sesi
       } catch (error) {
         await sock.sendMessage(sender, { text: "⚠️ Gagal menyimpan: " + error.message });
       }
       break;
+
     case '4':
       userSessions.set(sender, { 
         invoiceState: 'AWAITING_NAME', 
@@ -83,11 +85,13 @@ const handleInvoiceAction = async (sock, sender, messageText, session) => {
         text: "🛒 MEMULAI PEMESANAN BARU\nSilakan masukkan nama Anda:" 
       });
       break;
+
     case '5':
       delete session.previousInvoice;
       userSessions.set(sender, session);
       await sock.sendMessage(sender, { text: "❌ Invoice sebelumnya telah dihapus." });
       break;
+
     default:
       await sock.sendMessage(sender, { text: "❌ Pilihan tidak valid" });
   }
@@ -113,14 +117,18 @@ const handleInvoiceStep = async (sock, sender, messageText, session) => {
         break;
 
       case 'AWAITING_ADDRESS': {
-        const addressParts = messageText.split(',');
+        const addressParts = messageText.split(',')
+          .map(part => part.trim())
+          .filter(part => part !== '');
+
         if (addressParts.length !== 4) {
           await sock.sendMessage(sender, {
-            text: "⚠️ Format alamat tidak valid! Contoh: Sambong, 02/03, Batang, Batang"
+            text: "⚠️ Format alamat tidak valid! Pastikan format:\nDesa, RT/RW, Kecamatan, Kabupaten\nContoh: Sambong, 02/03, Batang, Batang"
           });
           return;
         }
-        const [village, rtRw, district, city] = addressParts.map(p => p.trim());
+
+        const [village, rtRw, district, city] = addressParts;
         nextSession.invoiceData.village = village;
         nextSession.invoiceData.rtRw = rtRw;
         nextSession.invoiceData.district = district;
@@ -133,8 +141,8 @@ const handleInvoiceStep = async (sock, sender, messageText, session) => {
       case 'AWAITING_PROVINCE': {
         try {
           const province = messageText;
-          const kota = nextSession.invoiceData.city; // Ambil kota dari data sebelumnya
-          const shipping = await checkShippingCost(province, kota); // Tambahkan parameter kota
+          const kota = nextSession.invoiceData.city;
+          const shipping = await checkShippingCost(province, kota);
 
           nextSession.invoiceData.address = [
             `Desa: ${nextSession.invoiceData.village}`,
@@ -166,8 +174,8 @@ const handleInvoiceStep = async (sock, sender, messageText, session) => {
           await showInvoiceConfirmation(sock, sender, {
             ...nextSession.invoiceData,
             total: nextSession.invoiceData.products.total + 
-              nextSession.invoiceData.shipping.finalCost === '*GRATIS*' ? 0 :
-                parseInt(nextSession.invoiceData.shipping.finalCost.replace(/\D/g, ''))
+              (nextSession.invoiceData.shipping.finalCost === '*GRATIS*' ? 0 :
+                parseInt(nextSession.invoiceData.shipping.finalCost.replace(/\D/g, '')))
           });
         } catch (error) {
           await sock.sendMessage(sender, { text: `⚠️ ${error.message}` });
@@ -181,15 +189,14 @@ const handleInvoiceStep = async (sock, sender, messageText, session) => {
             await sock.sendMessage(sender, { text: "🔗 Mengarahkan ke menu pembayaran..." });
             userSessions.delete(sender); // Hapus sesi setelah memilih opsi
             return; // Hentikan fungsi setelah hapus sesi
-            console.log(`Sesi dihapus untuk pengguna: ${sender}`); // Log untuk debugging
-            
-            return; // Hentikan fungsi setelah hapus sesi
+
           case '2':
             nextSession.invoiceState = 'AWAITING_EDIT_CHOICE';
             await sock.sendMessage(sender, {
-              text: "🛒 Ingin mengubah yang mana?\n1. Ubah Nama\n2. Ubah Nomor Telepon\n3. Ubah Produk\n4. Ubah Alamat\n5. Batal"
+              text: "🛒 Ingin mengubah yang mana?\n1. Ubah Nama\n2. Ubah Nomor Telepon\n3. Ubah Produk\n4. Ubah Alamat\n5. Kembali"
             });
             break;
+
           case '3':
             try {
               const response = await saveInvoiceToSheet(nextSession.invoiceData);
@@ -197,20 +204,19 @@ const handleInvoiceStep = async (sock, sender, messageText, session) => {
                 text: `✅ Invoice disimpan. ID: ${response.idPesanan}` 
               });
               userSessions.delete(sender); // Hapus sesi setelah menyimpan invoice
-              console.log(`Sesi dihapus untuk pengguna: ${sender}`); // Log untuk debugging
+              return; // Hentikan fungsi setelah hapus sesi
             } catch (error) {
               await sock.sendMessage(sender, { text: "⚠️ Gagal menyimpan: " + error.message });
-              return; // Hentikan fungsi setelah hapus sesi
             }
             break;
+
           case '4':
             userSessions.delete(sender); // Hapus sesi setelah membatalkan invoice
-            console.log(`Sesi dihapus untuk pengguna: ${sender}`); // Log untuk debugging
             await sock.sendMessage(sender, { text: "❌ Invoice dibatalkan" });
-            break;
+            return; // Hentikan fungsi setelah hapus sesi
+
           default:
             await sock.sendMessage(sender, { text: "❌ Pilihan tidak valid" });
-            return; // Hentikan fungsi setelah hapus sesi
         }
         break;
 
@@ -220,22 +226,26 @@ const handleInvoiceStep = async (sock, sender, messageText, session) => {
             nextSession.invoiceState = 'AWAITING_NEW_NAME';
             await sock.sendMessage(sender, { text: "🛒 Masukkan nama baru:" });
             break;
+
           case '2':
             nextSession.invoiceState = 'AWAITING_NEW_PHONE';
             await sock.sendMessage(sender, { text: "📞 Masukkan nomor telepon baru:" });
             break;
+
           case '3':
             nextSession.invoiceState = 'AWAITING_NEW_PRODUCTS';
             await sock.sendMessage(sender, {
               text: "📋 Masukkan produk baru:\nFormat: [Nama Produk] [Jumlah]"
             });
             break;
+
           case '4':
             nextSession.invoiceState = 'AWAITING_NEW_ADDRESS';
             await sock.sendMessage(sender, {
               text: "📍 Masukkan alamat baru:\nContoh: Sambong, 02/03, Batang, Batang"
             });
             break;
+
             case '5':
               nextSession.invoiceState = 'AWAITING_CONFIRMATION';
               await showInvoiceConfirmation(sock, sender, nextSession.invoiceData);
@@ -244,6 +254,7 @@ const handleInvoiceStep = async (sock, sender, messageText, session) => {
               await sock.sendMessage(sender, { text: "❌ Pilihan tidak valid" });
           }
           break;
+
 
       case 'AWAITING_NEW_NAME':
         nextSession.invoiceData.name = messageText;
@@ -262,12 +273,16 @@ const handleInvoiceStep = async (sock, sender, messageText, session) => {
       }
 
       case 'AWAITING_NEW_ADDRESS': {
-        const addressParts = messageText.split(',');
+        const addressParts = messageText.split(',')
+          .map(part => part.trim())
+          .filter(part => part !== '');
+
         if (addressParts.length !== 4) {
           await sock.sendMessage(sender, { text: "⚠️ Format alamat salah!" });
           return;
         }
-        const [village, rtRw, district, city] = addressParts.map(p => p.trim());
+
+        const [village, rtRw, district, city] = addressParts;
         nextSession.invoiceData.address = [
           `Desa: ${village}`, `RT/RW: ${rtRw}`, 
           `Kecamatan: ${district}`, `Kota: ${city}`
@@ -299,8 +314,9 @@ const handleInvoiceStep = async (sock, sender, messageText, session) => {
         break;
       }
     }
-userSessions.set(sender, nextSession);
-    
+
+    // Simpan progres sesi
+    userSessions.set(sender, nextSession);
   } catch (error) {
     console.error("Error:", error);
     await sock.sendMessage(sender, { text: `⚠️ Error: ${error.message}` });
