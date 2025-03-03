@@ -3,7 +3,7 @@ const axios = require('axios');
 // Fungsi untuk mengambil data produk
 const getProducts = async () => {
     try {
-        const response = await axios.get(`${process.env.APP_SCRIPT_URL}?action=get&sheet=produk`);
+        const response = await axios.get(`${process.env.APP_SCRIPT_URL}?action=get&sheet=DATA_PRODUK`);
 
         // Debug: Tampilkan data dari Apps Script
         console.log("Data dari Apps Script:", response.data);
@@ -47,7 +47,7 @@ const sendProductList = async (sock, sender) => {
         for (const category in categorizedProducts) {
             productList += `*${category.toUpperCase()}*\n`;
             categorizedProducts[category].forEach((product, index) => {
-                productList += `${index + 1}. ${product["Nama Produk"]} - Rp${product.Harga.toLocaleString()}\n`;
+                productList += `${index + 1}. ${product.Nama_Produk} - Rp${product.Harga.toLocaleString()}\n`;
             });
             productList += "\n";
         }
@@ -74,7 +74,7 @@ const sendProductDetail = async (sock, sender, productName) => {
 
         const products = await getProducts();
         const product = products.find(p => 
-            p["Nama Produk"].toLowerCase() === productName.toLowerCase()
+            p.Nama_Produk.toLowerCase() === productName.toLowerCase()
         );
 
         if (product) {
@@ -82,7 +82,7 @@ const sendProductDetail = async (sock, sender, productName) => {
             const productDetail = `
 📌 *Detail Produk:*
 ➖➖➖➖➖➖➖➖➖➖
-🛒 *Nama Produk:* ${product["Nama Produk"]}
+🛒 *Nama Produk:* ${product.Nama_Produk}
 💵 *Harga:* Rp${product.Harga.toLocaleString()}
 📦 *Satuan:* ${product.Satuan || "-"} 
 📝 *Manfaat:* ${product.Manfaat}
@@ -90,26 +90,25 @@ const sendProductDetail = async (sock, sender, productName) => {
             `;
 
             // Kirim gambar
-if (product["Foto URL"]) {
-    // Ambil ID file dari URL Google Drive
-    const fileIdMatch = product["Foto URL"].match(/(?:id=)([a-zA-Z0-9_-]+)/);
+            if (product.Foto_URL) {
+                // Ambil ID file dari URL Google Drive
+                const fileIdMatch = product.Foto_URL.match(/(?:id=)([a-zA-Z0-9_-]+)/);
 
-    if (fileIdMatch && fileIdMatch[1]) {
-        // Membentuk URL gambar langsung
-        const directImageUrl = `https://drive.google.com/uc?export=view&id=${fileIdMatch[1]}`;
+                if (fileIdMatch && fileIdMatch[1]) {
+                    // Membentuk URL gambar langsung
+                    const directImageUrl = `https://drive.google.com/uc?export=view&id=${fileIdMatch[1]}`;
 
-        await sock.sendMessage(sender, { 
-            image: { url: directImageUrl },
-            caption: productDetail
-        });
-    } else {
-        console.error("Error: Tidak dapat menemukan ID file di URL:", product["Foto URL"]);
-        await sock.sendMessage(sender, { text: "URL foto tidak valid atau tidak ditemukan." });
-    }
-} else {
-    await sock.sendMessage(sender, { text: productDetail });
-}
-
+                    await sock.sendMessage(sender, { 
+                        image: { url: directImageUrl },
+                        caption: productDetail
+                    });
+                } else {
+                    console.error("Error: Tidak dapat menemukan ID file di URL:", product.Foto_URL);
+                    await sock.sendMessage(sender, { text: "URL foto tidak valid atau tidak ditemukan." });
+                }
+            } else {
+                await sock.sendMessage(sender, { text: productDetail });
+            }
 
             // Pesan lanjutan
             await sock.sendMessage(sender, {
@@ -117,7 +116,7 @@ if (product["Foto URL"]) {
             });
 
         } else {
-            await sock.sendMessage(sender, { text: "❌ Produk tidak ditemukan." });
+            await sock.sendMessage(sender, { text: "❌ Produk tidak ditemukan.Pastikan nama produk sesuai dengan daftar. Contoh: *Burhanrex*" });
         }
 
     } catch (error) {
