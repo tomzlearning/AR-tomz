@@ -14,6 +14,53 @@ const kembaliKeMenuEdit = async (sock, sender, session) => {
   userSessions.set(sender, session); // Simpan session
 };
 
+const handlePayment = async (sock, sender, session) => {
+  const invoiceId = session.previousInvoice?.id;
+  if (!invoiceId) {
+    await sock.sendMessage(sender, { text: "❌ Invoice tidak valid. Silakan coba lagi." });
+    return;
+  }
+
+  // Lanjutkan proses pembayaran
+  await sock.sendMessage(sender, {
+    text: "💳 Pilih metode pembayaran:\n1. Transfer Bank\n2. COD (Cash on Delivery)"
+  });
+
+  session.invoiceState = 'AWAITING_PAYMENT_METHOD';
+  userSessions.set(sender, session);
+};
+// Fungsi untuk menampilkan detail invoice
+const tampilkanDetailInvoice = async (sock, sender, invoice) => {
+  const productList = invoice.items.map(item => 
+    `${item.name} (${item.qty}x Rp${item.price.toLocaleString('id-ID')}) = Rp${item.subtotal.toLocaleString('id-ID')}`
+  ).join('\n') || "Belum ada produk.";
+
+  let detailInvoice = `📝 DETAIL INVOICE (${invoice.paymentStatus.toUpperCase()})\n➖➖➖➖➖➖➖➖➖➖\n`;
+  detailInvoice += `ID: ${invoice.id}\nNama: ${invoice.name}\nNo. Telepon: ${invoice.phone}\nAlamat: ${invoice.address}\n\n`;
+  detailInvoice += `Produk:\n${productList}\n\n`;
+  detailInvoice += `Ongkir: ${invoice.shipping.originalCost} ${invoice.shipping.finalCost}\n`;
+  detailInvoice += `Estimasi: ${invoice.shipping.estimate}\n`;
+
+  if (invoice.shippingStatus === "DIKIRIM") {
+    detailInvoice += `Nomor Resi: ${invoice.shipping.resi || "Belum diisi"}\n`;
+  }
+
+  detailInvoice += `➖➖➖➖➖➖➖➖➖➖\nTOTAL: Rp${invoice.total.toLocaleString('id-ID')}\n\n`;
+
+  // Opsi berdasarkan status
+  if (invoice.paymentStatus === "DRAFT") {
+    detailInvoice += "Pilihan:\n1. Lanjut Pembayaran\n2. Ubah\n3. Hapus";
+  } else if (invoice.shippingStatus === "DIKIRIM") {
+    detailInvoice += "Pilihan:\n1. Lacak Pengiriman\n2. Cetak Invoice (PDF)\n3. Kembali";
+  } else if (invoice.shippingStatus === "DITOLAK") {
+    detailInvoice += "Pilihan:\n1. Proses Pengembalian Dana\n2. Kembali";
+  } else {
+    detailInvoice += "Pilihan:\n1. Cetak Invoice (PDF)\n2. Kembali";
+  }
+
+  await sock.sendMessage(sender, { text: detailInvoice });
+};
+
 const tampilkanInvoiceSebelumnya = async (sock, sender, session) => {
   const invoice = session.previousInvoice;
 
@@ -55,6 +102,7 @@ Pilihan:
   userSessions.set(sender, session); // Simpan session
 };
 
+// Fungsi untuk menampilkan daftar invoice
 const showDraftInvoices = async (sock, sender, invoices) => {
   if (invoices.length === 0) {
     await sock.sendMessage(sender, { text: "📭 Tidak ada invoice tersimpan." });
@@ -63,20 +111,19 @@ const showDraftInvoices = async (sock, sender, invoices) => {
 
   let invoiceList = "📝 Invoice yang tersimpan:\n";
   invoices.forEach((invoice, index) => {
-    invoiceList += `${index + 1}. ID: ${invoice.id} (Status: ${invoice.status})\n`;
+    invoiceList += 
+      `${index + 1}. ID: ${invoice.id}\n` +
+      `   💵 *Pembayaran:* ${invoice.paymentStatus}\n` +
+      `   🚚 *Pengiriman:* ${invoice.shippingStatus}\n\n`;
   });
 
   invoiceList += "\nPilihan:\n1. Kelola Invoice\n2. Buat invoice baru";
   await sock.sendMessage(sender, { text: invoiceList });
 
-  // Set session state ke AWAITING_INVOICE_ACTION
-  const session = userSessions.get(sender) || {
-    invoiceState: null,
-    invoiceData: {},
-    previousInvoice: null
-  };
-  session.invoiceState = 'AWAITING_INVOICE_ACTION'; // Set state untuk menunggu pilihan
-  userSessions.set(sender, session); // Simpan session
+  // Update session state
+  const session = userSessions.get(sender) || { invoiceState: null };
+  session.invoiceState = 'AWAITING_INVOICE_ACTION';
+  userSessions.set(sender, session);
 };
 
 const handleInvoiceAction = async (sock, sender, messageText, session) => {
@@ -93,7 +140,6 @@ const handleInvoiceAction = async (sock, sender, messageText, session) => {
 
   switch (messageText) {
     case '1': // Kelola Invoice
-      console.log("Opsi 1 dipilih. Session:", session); // Debugging
       const invoices = await getInvoicesByPhone(phoneNumber);
       if (invoices.length === 0) {
         await sock.sendMessage(sender, { text: "📭 Tidak ada invoice tersimpan." });
@@ -102,32 +148,65 @@ const handleInvoiceAction = async (sock, sender, messageText, session) => {
 
       let invoiceList = "📝 Invoice yang tersimpan:\n";
       invoices.forEach((invoice, index) => {
-        invoiceList += `${index + 1}. ID: ${invoice.id} (Status: ${invoice.status})\n`;
+        invoiceList += 
+          `${index + 1}. ID: ${invoice.id}\n` +
+          `   💵 *Pembayaran:* ${invoice.paymentStatus}\n` +
+          `   🚚 *Pengiriman:* ${invoice.shippingStatus}\n\n`;
       });
 
       invoiceList += "\nKetik nomor invoice yang ingin Anda kelola.\nContoh: 1";
       await sock.sendMessage(sender, { text: invoiceList });
 
-      session.invoiceState = 'AWAITING_INVOICE_SELECTION'; // Ubah state untuk menunggu pilihan invoice
-      userSessions.set(sender, session); // Simpan session
+      session.invoiceState = 'AWAITING_INVOICE_SELECTION';
+      userSessions.set(sender, session);
       break;
 
     case '2': // Buat Invoice Baru
-      console.log("Opsi 2 dipilih. Session:", session); // Debugging
-      // Reset session untuk memulai invoice baru
       userSessions.set(sender, {
-        invoiceState: 'AWAITING_NAME', // Mulai dari langkah memasukkan nama
-        invoiceData: {}, // Reset data invoice
-        previousInvoice: null // Hapus invoice sebelumnya
+        invoiceState: 'AWAITING_NAME',
+        invoiceData: {},
+        previousInvoice: null
       });
-      await sock.sendMessage(sender, { 
-        text: "🛒 MEMULAI PEMESANAN BARU\nSilakan masukkan nama Anda:" 
+      await sock.sendMessage(sender, {
+        text: "🛒 MEMULAI PEMESANAN BARU\nSilakan masukkan nama Anda:"
       });
       break;
 
     default:
-      console.log("Opsi tidak valid:", messageText); // Debugging
-      await sock.sendMessage(sender, { text: "❌ Pilihan tidak valid" });
+      await sock.sendMessage(sender, { text: "❌ Pilihan tidak valid. Silakan ketik angka 1-2. Contoh: 1" });
+  }
+};
+
+const handleDraftAction = async (sock, sender, messageText, nextSession) => { // ◀ Terima nextSession
+  try {
+    switch (messageText) {
+      case '1': // Lanjut Pembayaran
+        await sock.sendMessage(sender, {
+          text: "💳 Pilih metode pembayaran:\n1. Transfer Bank (QRIS)\n2. COD (Cash on Delivery)"
+        });
+        nextSession.invoiceState = 'AWAITING_PAYMENT_METHOD'; // ◀ Langsung ubah nextSession
+        userSessions.set(sender, nextSession);
+        break;
+
+      case '2': // Ubah
+        nextSession.invoiceState = 'AWAITING_EDIT_CHOICE';
+        await sock.sendMessage(sender, {
+          text: "🛒 Ingin mengubah yang mana?\n1. Ubah Nama\n2. Ubah Nomor Telepon\n3. Ubah Produk\n4. Ubah Alamat\n5. Kembali"
+        });
+        break;
+
+      case '3': // Hapus
+        await updateInvoiceStatus(nextSession.previousInvoice.id, "Dibatalkan", "Status_Pembayaran");
+        await sock.sendMessage(sender, { text: "✅ Invoice berhasil dihapus." });
+        userSessions.delete(sender);
+        break;
+
+      default:
+        await sock.sendMessage(sender, { text: "❌ Pilihan tidak valid" });
+    }
+  } catch (error) {
+    console.error("Error dalam handleDraftAction:", error);
+    await sock.sendMessage(sender, { text: `⚠️ Error: ${error.message}` });
   }
 };
 
@@ -158,12 +237,12 @@ const handleInvoiceStep = async (sock, sender, messageText, session) => {
           .map(part => part.trim())
           .filter(part => part !== '');
 
-        if (addressParts.length !== 4) {
-          await sock.sendMessage(sender, {
-            text: "⚠️ Format alamat tidak valid! Pastikan format:\nDesa, RT/RW, Kecamatan, Kabupaten\nContoh: Sambong, 02/03, Batang, Batang"
-          });
-          return;
-        }
+          if (addressParts.length !== 4) {
+            await sock.sendMessage(sender, {
+              text: "❌ Maaf, format alamat yang Anda masukkan tidak valid. Pastikan formatnya:\nDesa, RT/RW, Kecamatan, Kabupaten\nContoh: *Sambong, 02/03, Batang, Batang*"
+            });
+            return;
+          }
 
         const [village, rtRw, district, city] = addressParts;
         nextSession.invoiceData.village = village;
@@ -220,17 +299,47 @@ const handleInvoiceStep = async (sock, sender, messageText, session) => {
         break;
       }
 
+      case 'AWAITING_DRAFT_ACTION':
+        await handleDraftAction(sock, sender, messageText, nextSession); // ◀ Pakai nextSession
+        break;
+
+      case 'AWAITING_PAYMENT_METHOD':
+        switch (messageText) {
+          case '1': // Transfer Bank (QRIS)
+            await sock.sendMessage(sender, {
+              image: { url: "https://drive.google.com/uc?export=download&id=1tFfX6h4tUG8Jo6Wa0Z9iwqBzdeDhzID9" },
+              caption: "📷 Silakan scan QRIS berikut untuk melakukan pembayaran."
+            });
+            await sock.sendMessage(sender, {
+              text: "🏦 Silakan lakukan transfer ke QRIS di atas.\nSetelah melakukan pembayaran, kirim bukti transfer ke admin."
+            });
+            await updateInvoiceStatus(nextSession.previousInvoice.id, "Menunggu Pembayaran", "Status_Pembayaran");
+            userSessions.delete(sender); // ◀ Hapus session
+            return; // ◀ Penting: return agar tidak menyimpan session lagi
+
+          case '2': // COD
+            await updateInvoiceStatus(nextSession.previousInvoice.id, "PENDING", "Status_Pembayaran");
+            await sock.sendMessage(sender, {
+              text: "🚚 Pesanan Anda akan diproses dengan metode COD. Pembayaran dilakukan saat paket diterima."
+            });
+            userSessions.delete(sender);
+            return;
+
+          default:
+            await sock.sendMessage(sender, { text: "❌ Pilihan tidak valid. Silakan ketik 1 atau 2." });
+        }
+        break;
+
       case 'AWAITING_CONFIRMATION':
         switch (messageText) {
           case '1': // Lanjut Pembayaran
-            try {
-              await updateInvoiceStatus(session.previousInvoice.id, "Dikirim");
-              await sock.sendMessage(sender, { text: "✅ Pembayaran berhasil. Status invoice telah diupdate." });
-            } catch (error) {
-              await sock.sendMessage(sender, { text: `⚠️ Gagal memproses pembayaran: ${error.message}` });
-            }
-            userSessions.delete(sender);
-            return;
+          // Simpan data invoice ke session.previousInvoice
+          session.previousInvoice = {
+            id: generateInvoiceId(), // Fungsi untuk menghasilkan ID invoice
+            ...session.invoiceData
+          };
+          await handlePayment(sock, sender, session);
+          break;
 
           case '2': // Ubah
             nextSession.invoiceState = 'AWAITING_EDIT_CHOICE';
@@ -258,9 +367,18 @@ const handleInvoiceStep = async (sock, sender, messageText, session) => {
             return;
 
           default:
-            await sock.sendMessage(sender, { text: "❌ Pilihan tidak valid" });
+            await sock.sendMessage(sender, { text: "❌ Pilihan tidak valid. Silakan ketik angka 1-4. Contoh: 1" });
         }
         break;
+
+
+case 'AWAITING_PAYMENT_PROOF':
+  // Admin akan menangani bukti pembayaran
+  await sock.sendMessage(sender, {
+    text: "✅ Bukti pembayaran telah diterima. Admin akan memverifikasi pembayaran Anda."
+  });
+  userSessions.delete(sender); // Selesai, reset session
+  break;
 
       case 'AWAITING_EDIT_CHOICE':
         switch (messageText) {
@@ -294,7 +412,7 @@ const handleInvoiceStep = async (sock, sender, messageText, session) => {
             break;
 
           default:
-            await sock.sendMessage(sender, { text: "❌ Pilihan tidak valid" });
+            await sock.sendMessage(sender, { text: "❌ Pilihan tidak valid. Silakan ketik angka 1-5. Contoh: 1" });
         }
         break;
 
@@ -306,7 +424,7 @@ const handleInvoiceStep = async (sock, sender, messageText, session) => {
       case 'AWAITING_NEW_PHONE': {
         const newPhone = messageText.replace(/\D/g, '');
         if (newPhone.length < 10) {
-          await sock.sendMessage(sender, { text: "⚠️ Nomor telepon tidak valid!" });
+          await sock.sendMessage(sender, { text: "⚠️ Maaf, nomor telepon yang Anda masukkan tidak valid. Pastikan nomor telepon terdiri dari 10-13 digit angka. Contoh: 081234567890." });
           return;
         }
         nextSession.invoiceData.phone = newPhone;
@@ -320,7 +438,7 @@ const handleInvoiceStep = async (sock, sender, messageText, session) => {
           .filter(part => part !== '');
 
         if (addressParts.length !== 4) {
-          await sock.sendMessage(sender, { text: "⚠️ Format alamat salah!" });
+          await sock.sendMessage(sender, { text: "❌ Maaf, format alamat yang Anda masukkan tidak valid. Pastikan formatnya:\nDesa, RT/RW, Kecamatan, Kabupaten\nContoh: *Sambong, 02/03, Batang, Batang*" });
           return;
         }
 
@@ -356,78 +474,67 @@ const handleInvoiceStep = async (sock, sender, messageText, session) => {
         break;
       }
 
-      
-        // File: messageHandler.js (dalam fungsi handleInvoiceStep)
+    
+  
+      case 'AWAITING_INVOICE_SELECTION': {
+  const invoices = await getInvoicesByPhone(phoneNumber);
+  const selectedIndex = parseInt(messageText) - 1;
 
-        case 'AWAITING_INVOICE_SELECTION': {
-          const invoices = await getInvoicesByPhone(phoneNumber);
-          
-          // Validasi input
-          const selectedIndex = parseInt(messageText) - 1;
-          
-          if (isNaN(selectedIndex)) {
-            await sock.sendMessage(sender, { text: "❌ Harap masukkan nomor yang valid." });
-            return;
-          }
-  
-          if (selectedIndex < 0 || selectedIndex >= invoices.length) {
-            await sock.sendMessage(sender, { text: "❌ Nomor invoice tidak valid." });
-            return;
-          }
-  
-          const selectedInvoice = invoices[selectedIndex];
-          
-          // Update session
-          nextSession.previousInvoice = selectedInvoice;
-          console.log("Invoice dipilih:", selectedInvoice); // Debugging
-  
-          // Proses berdasarkan status
-          if (selectedInvoice.status.toUpperCase() === 'DRAFT') {
-            // ... (kode DRAFT tetap sama)
-          } 
-          else if (selectedInvoice.status.toUpperCase() === 'PROSES PENGIRIMAN') {
-            const productList = selectedInvoice.items.map(item =>
-              `${item.name} (${item.qty}x Rp${item.price.toLocaleString('id-ID')}) = Rp${item.subtotal.toLocaleString('id-ID')}`
-            ).join('\n') || "Belum ada produk.";
-  
-            await sock.sendMessage(sender, {
-              text: `📝 DETAIL INVOICE (Proses Pengiriman)\n➖➖➖➖➖➖➖➖➖➖\nID: ${selectedInvoice.id}\nNama: ${selectedInvoice.name}\nNo. Telepon: ${selectedInvoice.phone}\nAlamat: ${selectedInvoice.address}\n\nProduk:\n${productList}\n\nOngkir: ${selectedInvoice.shipping.originalCost} ${selectedInvoice.shipping.finalCost}\nEstimasi: ${selectedInvoice.shipping.estimate}\nNomor Resi: ${selectedInvoice.shipping.resi || "Belum diisi"}\n➖➖➖➖➖➖➖➖➖➖\nTOTAL: Rp${selectedInvoice.total.toLocaleString('id-ID')}\n\nPilihan:\n1. Cetak Invoice\n2. Kembali`
-            });
-            nextSession.invoiceState = 'AWAITING_SHIPPING_ACTION'; // ◀◀◀ UPDATE STATE
-          }
-  
-          userSessions.set(sender, nextSession);
-          break;
-        }
-  
+  if (isNaN(selectedIndex)) {
+    await sock.sendMessage(sender, { text: "❌ Maaf, nomor telepon yang Anda masukkan tidak valid. Pastikan nomor telepon terdiri dari 10-13 digit angka. Contoh: 081234567890." });
+    return;
+  }
+
+  if (selectedIndex < 0 || selectedIndex >= invoices.length) {
+    await sock.sendMessage(sender, { text: "❌ Nomor invoice tidak valid." });
+    return;
+  }
+
+  const selectedInvoice = invoices[selectedIndex];
+  nextSession.previousInvoice = selectedInvoice;
+
+  // Tampilkan detail invoice berdasarkan status
+  await tampilkanDetailInvoice(sock, sender, selectedInvoice);
+
+  // Set state berdasarkan status invoice
+  if (selectedInvoice.paymentStatus.toUpperCase() === 'DRAFT') {
+    nextSession.invoiceState = 'AWAITING_DRAFT_ACTION';
+  } else if (selectedInvoice.shippingStatus.toUpperCase() === 'DIKIRIM') {
+    nextSession.invoiceState = 'AWAITING_SHIPPING_ACTION';
+  } else {
+    nextSession.invoiceState = 'AWAITING_INVOICE_ACTION';
+  }
+
+  userSessions.set(sender, nextSession);
+  break;
+}
+
         case 'AWAITING_SHIPPING_ACTION': {
-          console.log("[DEBUG] Masuk state shipping action"); // Debugging
           switch (messageText) {
             case '1': // Cetak Invoice
               try {
-                console.log("[DEBUG] Membuat PDF untuk:", nextSession.previousInvoice);
                 const pdfBuffer = await generateInvoicePDF(nextSession.previousInvoice);
-                
-                if (!pdfBuffer || pdfBuffer.length === 0) {
-                  throw new Error("Buffer PDF kosong");
-                }
-  
                 await sock.sendMessage(sender, {
                   document: pdfBuffer,
                   mimetype: 'application/pdf',
                   fileName: `Invoice_${nextSession.previousInvoice.id}.pdf`
                 });
                 await sock.sendMessage(sender, { text: "✅ Invoice PDF berhasil dikirim." });
-  
               } catch (error) {
                 console.error("Gagal membuat PDF:", error);
-                await sock.sendMessage(sender, { 
-                  text: "⚠️ Gagal membuat invoice. Silakan coba lagi atau hubungi admin." 
-                });
+                await sock.sendMessage(sender, { text: "⚠️ Gagal membuat invoice. Silakan coba lagi atau hubungi admin." });
               }
               break;
   
-            case '2': // Kembali
+            case '2': // Lacak Pengiriman
+              if (nextSession.previousInvoice.shipping.resi) {
+                await sock.sendMessage(sender, { text: `🚚 INFO PELACAKAN (Resi: ${nextSession.previousInvoice.shipping.resi})\nStatus: Paket sedang dalam perjalanan.\nEstimasi: ${nextSession.previousInvoice.shipping.estimate}` });
+              } else {
+                await sock.sendMessage(sender, { text: "❌ Nomor resi belum tersedia. Silakan hubungi admin." });
+              }
+              break;
+  
+            case '3': // Kembali
               nextSession.invoiceState = 'AWAITING_INVOICE_ACTION';
               await handleInvoiceAction(sock, sender, '1', nextSession);
               break;
@@ -529,7 +636,7 @@ module.exports = async (sock, message) => {
   const lowerMessage = messageText.toLowerCase();
   if (salamKeywords.some(kw => lowerMessage.includes(kw))) {
     await sock.sendMessage(sender, {
-      text: "Waalaikumsalam! Ketik .menu untuk melihat opsi."
+      text: "Waalaikumsalam Bos, Saya adalah bot pembantu Anda. Saya bisa membantu Anda membuat invoice, melihat produk, dan mengelola pesanan. Ketik *.menu* untuk melihat opsi yang tersedia."
     });
     return;
   }
@@ -537,14 +644,14 @@ module.exports = async (sock, message) => {
   if (!userSessions.has(sender)) {
     userSessions.set(sender, { inProductList: false, invoiceState: null });
     await sock.sendMessage(sender, {
-      text: "Halo! Ketik .menu untuk melihat opsi."
+      text: "Halo Bos, Saya adalah bot pembantu Anda. Saya bisa membantu Anda membuat invoice, melihat produk, dan mengelola pesanan. Ketik *.menu* untuk melihat opsi yang tersedia."
     });
     return;
   }
 
   if (sapaanKeywords.some(kw => lowerMessage.includes(kw))) {
     await sock.sendMessage(sender, {
-      text: "Ada yang bisa kami bantu? Ketik .menu untuk opsi."
+      text: "Halo Bos, Saya adalah bot pembantu Anda. Saya bisa membantu Anda membuat invoice, melihat produk, dan mengelola pesanan. Ketik *.menu* untuk melihat opsi yang tersedia."
     });
     return;
   }
