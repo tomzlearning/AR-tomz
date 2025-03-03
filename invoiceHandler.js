@@ -40,7 +40,7 @@ const checkShippingCost = async (province) => {
     );
 
     if (!area) {
-      throw new Error("Provinsi tidak terdaftar");
+      throw new Error("❌ Maaf, provinsi tidak terdaftar. Pastikan menulis provinsi dengan benar . Contoh: *Jawa Tengah*");
     }
 
     const ongkir = String(area.Ongkir || "0").replace(/\D/g, "");
@@ -65,7 +65,7 @@ const checkShippingCost = async (province) => {
       estimate: area.Estimasi,
     };
   } catch (error) {
-    throw new Error(`Gagal cek ongkir: ${error.message}`);
+    throw new Error(`Gagal cek ongkir\n${error.message}`);
   }
 };
 
@@ -88,9 +88,8 @@ const parseProductsInput = async (input) => {
       (p) => p.Nama_Produk.toLowerCase() === name.toLowerCase()
     );
 
-    if (!product) throw new Error(`Produk "${name}" tidak ditemukan`);
-    if (product.Stok.toLowerCase() !== "ready")
-      throw new Error(`Stok "${name}" habis`);
+    if (!product) throw new Error(`❌ Maaf, produk "${name}" tidak ditemukan. Pastikan nama produk sesuai dengan daftar. Contoh: *Burhanrex*`);
+    if (product.Stok.toLowerCase() !== "ready") throw new Error(`❌ Maaf, stok "${name}" sedang habis. Silakan pilih produk lain.`);
 
     if (itemsMap.has(name)) {
       const existingItem = itemsMap.get(name);
@@ -236,7 +235,7 @@ const saveInvoiceToSheet = async (invoiceData) => {
   }
 };
 
-// Fungsi untuk mengambil invoice berdasarkan nomor telepon
+
 // Fungsi untuk mengambil invoice berdasarkan nomor telepon
 const getInvoicesByPhone = async (phone) => {
   try {
@@ -246,55 +245,44 @@ const getInvoicesByPhone = async (phone) => {
     );
     const invoices = responsePesanan.data;
 
-    // Ambil semua data produk dari sheet DETAIL_PRODUK_PESANAN
+    // Ambil data produk dari DETAIL_PRODUK_PESANAN
     const responseProduk = await axios.get(
       `${process.env.APP_SCRIPT_URL}?action=get&sheet=DETAIL_PRODUK_PESANAN`
     );
     const allProduk = responseProduk.data;
 
-    // Gabungkan data produk ke dalam invoice
-    for (const invoice of invoices) {
-      invoice.items = allProduk
+    // Format data invoice
+    return invoices.map((invoice) => ({
+      id: invoice.ID_Pesanan,
+      paymentStatus: invoice.Status_Pembayaran || "DRAFT", // ◀ Status Pembayaran
+      shippingStatus: invoice.Status_Pengiriman || "BELUM DIKIRIM", // ◀ Status Pengiriman
+      name: invoice.Nama_Pemesan,
+      phone: invoice.Nomor_Telepon,
+      address: invoice.Alamat_Pengiriman,
+      items: allProduk
         .filter((produk) => produk.ID_Pesanan === invoice.ID_Pesanan)
         .map((produk) => ({
           id: produk.ID_Produk,
           name: produk.Nama_Produk,
-          price: Number(produk.Harga_Saat_Itu), // Pastikan berupa angka
-          qty: Number(produk.Jumlah), // Pastikan berupa angka
-          subtotal: Number(produk.Subtotal), // Pastikan berupa angka
-        }));
-    }
-
-    // Format data invoice
-    return invoices.map((invoice) => ({
-      id: invoice.ID_Pesanan,
-      status: invoice.Status_Pembayaran,
-      name: invoice.Nama_Pemesan,
-      phone: invoice.Nomor_Telepon,
-      address: invoice.Alamat_Pengiriman,
-      items: invoice.items || [],
+          price: Number(produk.Harga_Saat_Itu),
+          qty: Number(produk.Jumlah),
+          subtotal: Number(produk.Subtotal),
+        })),
       shipping: {
         province: invoice.Provinsi,
-        originalCost: invoice.Ongkir
-          ? `~Rp${invoice.Ongkir.toLocaleString("id-ID")}~`
-          : "Belum diisi",
-        finalCost:
-          invoice.Ongkir === 0
-            ? "*GRATIS*"
-            : `Rp${invoice.Ongkir.toLocaleString("id-ID")}`,
+        originalCost: invoice.Ongkir ? `~Rp${invoice.Ongkir.toLocaleString("id-ID")}~` : "Belum diisi",
+        finalCost: invoice.Ongkir === 0 ? "*GRATIS*" : `Rp${invoice.Ongkir.toLocaleString("id-ID")}`,
         estimate: invoice.Estimasi_Pengiriman || "Belum diisi",
-        resi: invoice.No_Resi || "", // Pastikan field resi ada
+        resi: invoice.No_Resi || "",
       },
-      total: Number(invoice.Total_Harga) || 0, // Pastikan berupa angka
+      total: Number(invoice.Total_Harga) || 0,
     }));
   } catch (error) {
-    console.error("Gagal mengambil invoice:", {
-      error: error.message,
-      stack: error.stack,
-    });
+    console.error("Gagal mengambil invoice:", error.message);
     return [];
   }
 };
+
 // Fungsi untuk mengambil invoice berdasarkan ID
 const getInvoiceById = async (invoiceId) => {
   try {
@@ -308,23 +296,24 @@ const getInvoiceById = async (invoiceId) => {
   }
 };
 
-// Fungsi untuk mengupdate status invoice berdasarkan ID
-const updateInvoiceStatus = async (invoiceId, newStatus) => {
+// Fungsi untuk mengupdate status invoice (diperbarui untuk handle kolom spesifik)
+const updateInvoiceStatus = async (invoiceId, newStatus, column = "Status_Pengiriman") => {
   try {
-    const response = await axios.post(process.env.APP_SCRIPT_URL, {
+    await axios.post(process.env.APP_SCRIPT_URL, {
       action: "update",
       sheet: "DATA_PESANAN",
       id: invoiceId,
-      data: {
-        Status_Pengiriman: newStatus,
-      },
+      data: { [column]: newStatus }, // ◀ Bisa update Status_Pembayaran atau Status_Pengiriman
     });
     return { success: true, message: "Status invoice berhasil diupdate." };
   } catch (error) {
     throw new Error("Gagal mengupdate status invoice: " + error.message);
   }
 };
-
+const generateInvoiceId = () => {
+  const date = new Date();
+  return `INV-${date.getFullYear()}${(date.getMonth() + 1).toString().padStart(2, '0')}${date.getDate().toString().padStart(2, '0')}-${Math.floor(Math.random() * 1000)}`;
+};
 // Fungsi untuk menghasilkan PDF dari data invoice
 const generateInvoicePDF = async (invoice) => {
   return new Promise((resolve, reject) => {
@@ -611,4 +600,5 @@ module.exports = {
   getInvoiceById,
   updateInvoiceStatus,
   generateInvoicePDF,
+  generateInvoiceId
 };
