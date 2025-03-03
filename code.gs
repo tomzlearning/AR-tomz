@@ -81,6 +81,36 @@ function doPost(e) {
   const sheetName = requestData.sheet;
   const action = requestData.action;
 
+   if (action === 'update') {
+    const sheet = spreadsheet.getSheetByName(sheetName);
+    if (!sheet) {
+      return ContentService.createTextOutput(
+        JSON.stringify({ error: 'Sheet tidak ditemukan' })
+      ).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    const data = sheet.getDataRange().getValues();
+    const headers = data[0];
+
+    const id = requestData.id;
+    const status = requestData.data["Status_Pengiriman"];
+
+    const rowIndex = data.findIndex(
+      (row) => row[headers.indexOf('ID_Pesanan')] === id
+    );
+
+    if (rowIndex === -1) {
+      return ContentService.createTextOutput(
+        JSON.stringify({ error: 'Pesanan tidak ditemukan' })
+      ).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    sheet.getRange(rowIndex + 2, headers.indexOf('Status_Pengiriman') + 1).setValue(status);
+    return ContentService.createTextOutput(
+      JSON.stringify({ success: true, message: 'Status berhasil diupdate' })
+    ).setMimeType(ContentService.MimeType.JSON);
+  }
+
   if (action !== 'save') {
     return ContentService.createTextOutput(
       JSON.stringify({ error: 'Action tidak valid' })
