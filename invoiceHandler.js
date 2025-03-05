@@ -5,6 +5,10 @@ const { getProducts } = require("./productHandler");
 
 // Fungsi untuk menunggu respons user
 const waitForUserResponse = async (sock, sender) => {
+  if (!sock || !sender) {
+    throw new Error("Sock atau sender tidak valid.");
+  }
+
   return new Promise((resolve) => {
     const listener = (m) => {
       const message = m.messages[0];
@@ -29,6 +33,10 @@ const waitForUserResponse = async (sock, sender) => {
 
 // Fungsi untuk mengecek ongkir
 const checkShippingCost = async (province) => {
+  if (!province) {
+    throw new Error("Provinsi tidak valid.");
+  }
+
   try {
     const response = await axios.get(
       `${process.env.APP_SCRIPT_URL}?action=get&sheet=DATA_ONGKIR`
@@ -40,7 +48,7 @@ const checkShippingCost = async (province) => {
     );
 
     if (!area) {
-      throw new Error("❌ Maaf, provinsi tidak terdaftar. Pastikan menulis provinsi dengan benar . Contoh: *Jawa Tengah*");
+      throw new Error("❌ Maaf, provinsi tidak terdaftar. Pastikan menulis provinsi dengan benar. Contoh: *Jawa Tengah*");
     }
 
     const ongkir = String(area.Ongkir || "0").replace(/\D/g, "");
@@ -82,26 +90,37 @@ const parseProductsInput = async (input) => {
 
     const lastSpaceIndex = trimmedLine.lastIndexOf(" ");
     const name = trimmedLine.substring(0, lastSpaceIndex).trim();
-    const qty = trimmedLine.substring(lastSpaceIndex + 1).trim();
+    const qty = parseInt(trimmedLine.substring(lastSpaceIndex + 1).trim());
+
+    if (isNaN(qty)) {
+      throw new Error(`❌ Jumlah produk "${name}" tidak valid. Pastikan jumlah berupa angka. Contoh: *Burhanrex 2*`);
+    }
+    if (qty <= 0) {
+      throw new Error(`❌ Jumlah produk "${name}" harus lebih dari 0. Contoh: *Burhanrex 2*`);
+    }
 
     const product = products.find(
       (p) => p.Nama_Produk.toLowerCase() === name.toLowerCase()
     );
 
-    if (!product) throw new Error(`❌ Maaf, produk "${name}" tidak ditemukan. Pastikan nama produk sesuai dengan daftar. Contoh: *Burhanrex*`);
-    if (product.Stok.toLowerCase() !== "ready") throw new Error(`❌ Maaf, stok "${name}" sedang habis. Silakan pilih produk lain.`);
+    if (!product) {
+      throw new Error(`❌ Maaf, produk "${name}" tidak ditemukan. Pastikan nama produk sesuai dengan daftar. Contoh: *Burhanrex*`);
+    }
+    if (product.Stok.toLowerCase() !== "ready") {
+      throw new Error(`❌ Maaf, stok "${name}" sedang habis. Silakan pilih produk lain.`);
+    }
 
     if (itemsMap.has(name)) {
       const existingItem = itemsMap.get(name);
-      existingItem.qty += parseInt(qty);
+      existingItem.qty += qty;
       existingItem.subtotal = existingItem.price * existingItem.qty;
     } else {
       itemsMap.set(name, {
         id: product.ID_Produk,
         name: product.Nama_Produk,
         price: product.Harga,
-        qty: parseInt(qty),
-        subtotal: product.Harga * parseInt(qty),
+        qty: qty,
+        subtotal: product.Harga * qty,
       });
     }
   }
@@ -113,6 +132,10 @@ const parseProductsInput = async (input) => {
 
 // Fungsi untuk menampilkan konfirmasi invoice
 const showInvoiceConfirmation = async (sock, sender, invoiceData) => {
+  if (!invoiceData) {
+    throw new Error("Data invoice tidak valid.");
+  }
+
   const { name, phone, address, products, shipping, total } = invoiceData;
 
   const safePhone = phone || "Belum diisi";
@@ -165,6 +188,10 @@ Pilihan:
 
 // Fungsi untuk menyimpan invoice ke sheet
 const saveInvoiceToSheet = async (invoiceData) => {
+  if (!invoiceData.phone || !invoiceData.name || !invoiceData.address || !invoiceData.shipping || !invoiceData.products) {
+    throw new Error("Data invoice tidak lengkap. Pastikan semua data telah diisi.");
+  }
+
   try {
     await axios.post(process.env.APP_SCRIPT_URL, {
       action: "save",
@@ -235,9 +262,12 @@ const saveInvoiceToSheet = async (invoiceData) => {
   }
 };
 
-
 // Fungsi untuk mengambil invoice berdasarkan nomor telepon
 const getInvoicesByPhone = async (phone) => {
+  if (!phone || phone.length < 10) {
+    throw new Error("Nomor telepon tidak valid. Pastikan nomor telepon terdiri dari 10-13 digit angka.");
+  }
+
   try {
     // Ambil data invoice dari sheet DATA_PESANAN
     const responsePesanan = await axios.get(
@@ -285,6 +315,10 @@ const getInvoicesByPhone = async (phone) => {
 
 // Fungsi untuk mengambil invoice berdasarkan ID
 const getInvoiceById = async (invoiceId) => {
+  if (!invoiceId) {
+    throw new Error("Invoice ID tidak valid.");
+  }
+
   try {
     const response = await axios.get(
       `${process.env.APP_SCRIPT_URL}?action=get&sheet=DATA_PESANAN&id=${invoiceId}`
@@ -298,6 +332,10 @@ const getInvoiceById = async (invoiceId) => {
 
 // Fungsi untuk mengupdate status invoice (diperbarui untuk handle kolom spesifik)
 const updateInvoiceStatus = async (invoiceId, newStatus, column = "Status_Pengiriman") => {
+  if (!invoiceId || !newStatus) {
+    throw new Error("Invoice ID atau status baru tidak valid.");
+  }
+
   try {
     await axios.post(process.env.APP_SCRIPT_URL, {
       action: "update",
@@ -310,12 +348,19 @@ const updateInvoiceStatus = async (invoiceId, newStatus, column = "Status_Pengir
     throw new Error("Gagal mengupdate status invoice: " + error.message);
   }
 };
+
+// Fungsi untuk menghasilkan ID invoice
 const generateInvoiceId = () => {
   const date = new Date();
   return `INV-${date.getFullYear()}${(date.getMonth() + 1).toString().padStart(2, '0')}${date.getDate().toString().padStart(2, '0')}-${Math.floor(Math.random() * 1000)}`;
 };
+
 // Fungsi untuk menghasilkan PDF dari data invoice
 const generateInvoicePDF = async (invoice) => {
+  if (!invoice || !invoice.items || invoice.items.length === 0) {
+    throw new Error("Data invoice tidak valid atau tidak lengkap.");
+  }
+
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({
       margin: 40,
@@ -590,6 +635,7 @@ doc
     doc.end();
   });
 };
+
 module.exports = {
   waitForUserResponse,
   checkShippingCost,
