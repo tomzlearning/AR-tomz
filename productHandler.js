@@ -116,7 +116,7 @@ const sendProductDetail = async (sock, sender, productName) => {
             });
 
         } else {
-            await sock.sendMessage(sender, { text: "❌ Produk tidak ditemukan.Pastikan nama produk sesuai dengan daftar. Contoh: *Burhanrex*" });
+            await sock.sendMessage(sender, { text: "❌ Produk tidak ditemukan. Pastikan nama produk sesuai dengan daftar. Contoh: *Burhanrex*" });
         }
 
     } catch (error) {
